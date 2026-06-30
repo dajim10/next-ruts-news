@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { NewsPost } from '@/types/news';
 import { fetchPostsByFacultyPaginated, extractFaculties, extractCategories, fetchFeaturedPosts, FeaturedPost } from '@/lib/api';
+import { extractTokenFromUrl, setAuthToken, isFromMobileApp, validateCurrentToken, hasAuthToken } from '@/lib/token';
+import { useRouter } from 'next/navigation';
 import NewsGrid from '@/components/NewsGrid';
 import FacultyDropdown from '@/components/FacultyDropdown';
 import CategoryFilter from '@/components/CategoryFilter';
@@ -22,9 +24,55 @@ export default function Home() {
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
+  const router = useRouter();
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+
+  // Check authentication on initial load
+  useEffect(() => {
+    async function checkAuthentication() {
+      if (typeof window === 'undefined') return;
+
+      // ตรวจสอบ token จาก URL ก่อน (สำหรับกรณีที่ส่ง token มา)
+      const tokenData = extractTokenFromUrl();
+      
+      if (tokenData && tokenData.username && tokenData.token && tokenData.token.trim() !== '') {
+        // ถ้ามี token ใน URL ให้เก็บและ validate
+        const fromMobile = isFromMobileApp();
+        const tokenSource = fromMobile ? 'mobile' : 'web';
+        setAuthToken(tokenData.token, tokenData.username, tokenSource, fromMobile);
+        
+        const userInfo = await validateCurrentToken(true);
+        if (userInfo) {
+          // Clean URL โดยลบ token ออก
+          window.history.replaceState({}, '', '/');
+        }
+        setCheckingAuth(false);
+        return;
+      }
+
+      // ตรวจสอบว่ามี token อยู่แล้วหรือไม่ (สำหรับกรณีที่ login แล้ว)
+      if (hasAuthToken()) {
+        const userInfo = await validateCurrentToken();
+        if (userInfo) {
+          // Token valid
+          setCheckingAuth(false);
+          return;
+        } else {
+          // Token ไม่ valid ให้ลบออก
+          // แต่ยังให้เข้าหน้าแรกได้ (ไม่บังคับ login)
+        }
+      }
+
+      // ถ้าไม่มี token ก็ให้เข้าหน้าแรกได้เลย (ไม่บังคับ login)
+      setCheckingAuth(false);
+    }
+    
+    checkAuthentication();
+  }, [router]);
 
   // Initial load
   useEffect(() => {
@@ -143,6 +191,21 @@ export default function Home() {
         : [...prev, categoryId]
     );
   };
+
+  // แสดง loading ขณะตรวจสอบ authentication
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4 dark:from-gray-950 dark:to-slate-900">
+        <div className="text-center">
+          <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-600/30">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
+          </div>
+          <p className="text-base font-medium text-gray-600 dark:text-gray-400">กำลังตรวจสอบสิทธิ์...</p>
+          <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">โปรดรอสักครู่</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

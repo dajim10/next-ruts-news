@@ -1,9 +1,12 @@
 #!/bin/bash
 
 # Configuration
-IMAGE_NAME="node:next-ruts-news"
+IMAGE_NAME="node:next-news-ruts"
 # Accept registry as first argument or from environment variable
-REGISTRY="${1:-${DOCKER_REGISTRY:-}}"
+REGISTRY="${1:-${DOCKER_REGISTRY:-registry.rmutsv.app/panuwat.n}}"
+
+# Platform to build for (Linux AMD64 only - server is Linux)
+PLATFORMS="linux/amd64"
 
 # Colors for output
 RED='\033[0;31m'
@@ -11,39 +14,64 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Building Docker image: ${IMAGE_NAME}${NC}"
-
-# Build the image
-docker build -t ${IMAGE_NAME} .
-
-if [ $? -ne 0 ]; then
-    echo -e "${RED}Build failed!${NC}"
+# Check if buildx is available
+if ! docker buildx version > /dev/null 2>&1; then
+    echo -e "${RED}Error: docker buildx is not available!${NC}"
+    echo -e "${YELLOW}Please install or enable docker buildx${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}Build successful!${NC}"
+# Create and use buildx builder if it doesn't exist
+BUILDER_NAME="multiarch-builder"
+if ! docker buildx inspect ${BUILDER_NAME} > /dev/null 2>&1; then
+    echo -e "${YELLOW}Creating buildx builder: ${BUILDER_NAME}${NC}"
+    docker buildx create --name ${BUILDER_NAME} --use
+    docker buildx inspect --bootstrap
+else
+    echo -e "${YELLOW}Using existing buildx builder: ${BUILDER_NAME}${NC}"
+    docker buildx use ${BUILDER_NAME}
+fi
 
-# If registry is provided, tag and push
+# Construct full image name
 if [ -n "$REGISTRY" ]; then
     FULL_IMAGE_NAME="${REGISTRY}/${IMAGE_NAME}"
-    echo -e "${YELLOW}Tagging image as: ${FULL_IMAGE_NAME}${NC}"
-    docker tag ${IMAGE_NAME} ${FULL_IMAGE_NAME}
-    
-    echo -e "${YELLOW}Pushing image to registry...${NC}"
-    docker push ${FULL_IMAGE_NAME}
+else
+    FULL_IMAGE_NAME="${IMAGE_NAME}"
+fi
+
+echo -e "${GREEN}Building Docker image: ${FULL_IMAGE_NAME}${NC}"
+echo -e "${YELLOW}Platform: ${PLATFORMS}${NC}"
+
+# Build and push using buildx
+if [ -n "$REGISTRY" ]; then
+    # Build and push to registry
+    docker buildx build \
+        --platform ${PLATFORMS} \
+        -t ${FULL_IMAGE_NAME} \
+        --push \
+        .
     
     if [ $? -ne 0 ]; then
-        echo -e "${RED}Push failed!${NC}"
+        echo -e "${RED}Build and push failed!${NC}"
         exit 1
     fi
     
-    echo -e "${GREEN}Image pushed successfully: ${FULL_IMAGE_NAME}${NC}"
+    echo -e "${GREEN}Image built and pushed successfully: ${FULL_IMAGE_NAME}${NC}"
 else
-    echo -e "${YELLOW}No registry specified. Skipping push.${NC}"
-    echo -e "${YELLOW}Usage:${NC}"
-    echo -e "${YELLOW}  ./build-image.sh                    # Build only${NC}"
-    echo -e "${YELLOW}  ./build-image.sh your-registry.com   # Build and push${NC}"
-    echo -e "${YELLOW}  DOCKER_REGISTRY=your-registry.com ./build-image.sh  # Build and push (env var)${NC}"
+    # Build only (load to local docker)
+    echo -e "${YELLOW}Building for local platform only (no push)${NC}"
+    docker buildx build \
+        --platform ${PLATFORMS} \
+        -t ${FULL_IMAGE_NAME} \
+        --load \
+        .
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Build failed!${NC}"
+        exit 1
+    fi
+    
+    echo -e "${GREEN}Build successful!${NC}"
 fi
 
 echo -e "${GREEN}Done!${NC}"

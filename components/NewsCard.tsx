@@ -16,7 +16,7 @@ export default function NewsCard({ post }: NewsCardProps) {
   const categories = getPostCategories(post);
   const [imageError, setImageError] = useState(false);
 
-  const hasImage = featuredImage && !imageError;
+  const hasImage = featuredImage && featuredImage.trim() !== '' && !imageError;
 
   const handleShareFacebook = (e: React.MouseEvent) => {
     e.preventDefault();

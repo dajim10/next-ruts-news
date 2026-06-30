@@ -74,14 +74,18 @@ export default function HeroCarousel({ posts }: HeroCarouselProps) {
                             }`}
                     >
                         {/* Image */}
-                        <Image
-                            src={post.featureImage}
-                            alt={post.title}
-                            fill
-                            className="object-cover"
-                            priority={index === 0}
-                            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 100vw, 1280px"
-                        />
+                        {post.featureImage && post.featureImage.trim() !== '' ? (
+                            <Image
+                                src={post.featureImage}
+                                alt={post.title}
+                                fill
+                                className="object-cover"
+                                priority={index === 0}
+                                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 100vw, 1280px"
+                            />
+                        ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900" />
+                        )}
 
                         {/* Gradient Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
