@@ -4,7 +4,7 @@ services:
   next-ruts-news:
     image: registry.rmutsv.app/panuwat.n/node:next-news-ruts
     networks:
-      - public
+      - public2
     volumes:
       - /etc/localtime:/etc/localtime
     environment:
@@ -15,13 +15,26 @@ services:
       - HOSTNAME=0.0.0.0
 
     deploy:
+      mode: replicated
+      replicas: 1              
+      resources:
+        limits:
+          cpus: "0.5"          # จำกัด CPU 50%
+          memory: 256M         # จำกัด RAM
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
       labels:
         traefik.enable: "true"
         traefik.http.routers.next-ruts-news.entrypoints: websecure
-        traefik.http.routers.next-ruts-news.rule: Host(`news.web.rmutsv.ac.th`)
+        traefik.http.routers.next-ruts-news.rule: Host(`news.rutsapp.rmutsv.ac.th`)
         traefik.http.routers.next-ruts-news.tls.certresolver: myresolver
         traefik.http.services.next-ruts-news.loadbalancer.server.port: '3000'
+        traefik.http.routers.next-ruts-news.middlewares: security-headers@file
 
 networks:
-  public:
+  public2:
     external: true

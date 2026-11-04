@@ -1,47 +1,11 @@
 import { NewsPost } from '@/types/news';
-import { getAuthToken } from './token';
 
 const API_BASE_URL = 'https://nodeapi.apps.rmutsv.ac.th';
 
-/**
- * Create fetch options with auth token if available
- * Note: Only works on client-side (browser) where sessionStorage is available
- */
-function getFetchOptions(options: RequestInit = {}): RequestInit {
-  // Only add token on client-side
-  if (typeof window === 'undefined') {
-    return options;
-  }
-  
-  const token = getAuthToken();
-  const existingHeaders = options.headers || {};
-  
-  // Convert headers to plain object if needed
-  const headers: Record<string, string> = {};
-  if (existingHeaders instanceof Headers) {
-    existingHeaders.forEach((value, key) => {
-      headers[key] = value;
-    });
-  } else if (Array.isArray(existingHeaders)) {
-    existingHeaders.forEach(([key, value]) => {
-      headers[key] = value;
-    });
-  } else if (existingHeaders) {
-    Object.assign(headers, existingHeaders);
-  }
-  
-  // Add token to headers if available
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-    // หรือใช้ header อื่นตามที่ API ต้องการ เช่น:
-    // headers['X-Auth-Token'] = token;
-  }
-  
-  return {
-    ...options,
-    headers,
-  };
-}
+// Do not add Authorization or custom headers to nodeapi requests from the browser.
+// They trigger a CORS preflight, and nodeapi answers OPTIONS without
+// Access-Control-Allow-Origin, so the browser blocks the request. The API is public
+// and needs no token.
 
 // Interface for carousel/featured posts (simpler structure)
 export interface FeaturedPost {
@@ -55,35 +19,19 @@ export interface FeaturedPost {
 }
 
 /**
- * Fetch featured posts for carousel (upcoming events + highlights)
+ * Fetch featured posts for carousel
+ *
+ * เรียก route handler ของเราเอง ไม่ยิง nodeapi ตรง ๆ เพราะ `/posts/highlights-th`
+ * ส่งข่าว 1,174 ชิ้น (~815 KB) มาทั้งก้อนเพื่อใช้แค่ 5 สไลด์
+ * ฝั่ง server คัดให้เหลือ 5 ชิ้นแล้ว (~2 KB) และ cache ร่วมกันทุกคน 5 นาที
  */
 export async function fetchFeaturedPosts(): Promise<FeaturedPost[]> {
   try {
-    // Fetch from both slugs in parallel
-    const fetchOptions = getFetchOptions({ next: { revalidate: 300 } });
-    const [eventsResponse, highlightsResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/posts/upcoming-events-th`, fetchOptions),
-      fetch(`${API_BASE_URL}/posts/highlights-th`, fetchOptions),
-    ]);
-    
-    const eventsData = eventsResponse.ok ? await eventsResponse.json() : [];
-    const highlightsData = highlightsResponse.ok ? await highlightsResponse.json() : [];
-    
-    // Combine and deduplicate by guid
-    const allPosts = [...(Array.isArray(eventsData) ? eventsData : []), ...(Array.isArray(highlightsData) ? highlightsData : [])];
-    const uniquePosts = allPosts.filter((post, index, self) => 
-      index === self.findIndex((p) => p.guid?.rendered === post.guid?.rendered)
-    );
-    
-    // Filter out posts without valid featureImage and ensure featureImage is not empty
-    const postsWithImages = uniquePosts.filter((post: any) => 
-      post.featureImage && post.featureImage.trim() !== ''
-    );
-    
-    // Sort by date (newest first) and limit to 5
-    return postsWithImages
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
+    const response = await fetch('/api/featured');
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Error fetching featured posts:', error);
     return [];
@@ -95,9 +43,9 @@ export async function fetchFeaturedPosts(): Promise<FeaturedPost[]> {
  */
 export async function fetchAllPosts(): Promise<NewsPost[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts`, getFetchOptions({
+    const response = await fetch(`${API_BASE_URL}/posts`, {
       next: { revalidate: 300 }, // Revalidate every 5 minutes
-    }));
+    });
     
     if (!response.ok) {
       throw new Error('Failed to fetch posts');
@@ -116,9 +64,9 @@ export async function fetchAllPosts(): Promise<NewsPost[]> {
  */
 export async function fetchPostsByFaculty(slug: string): Promise<NewsPost[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts/${slug}`, getFetchOptions({
+    const response = await fetch(`${API_BASE_URL}/posts/${slug}`, {
       next: { revalidate: 300 },
-    }));
+    });
     
     if (!response.ok) {
       throw new Error('Failed to fetch posts by faculty');
@@ -177,10 +125,10 @@ export async function fetchPostsByFacultyPaginated(
   perPage: number = 12
 ): Promise<NewsPost[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/posts/${slug}/${perPage}`, getFetchOptions({
+    const response = await fetch(`${API_BASE_URL}/posts/${slug}/${perPage}`, {
       next: { revalidate: 300 },
       cache: 'no-store', // For infinite scroll, don't cache
-    }));
+    });
     
     if (!response.ok) {
       throw new Error('Failed to fetch posts by faculty');

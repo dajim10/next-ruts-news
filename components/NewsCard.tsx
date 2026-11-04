@@ -5,7 +5,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { NewsPost } from '@/types/news';
 import { getFeaturedImageUrl, formatDate, getPostCategories } from '@/lib/api';
-import { ArrowRight, Facebook } from 'lucide-react';
+import { extractSdgs } from '@/lib/sdg';
+import SdgBadges from './SdgBadges';
+import { ArrowRight, Share2 } from 'lucide-react';
 
 interface NewsCardProps {
   post: NewsPost;
@@ -14,15 +16,24 @@ interface NewsCardProps {
 export default function NewsCard({ post }: NewsCardProps) {
   const featuredImage = getFeaturedImageUrl(post);
   const categories = getPostCategories(post);
+  const sdgs = extractSdgs(post.slug);
   const [imageError, setImageError] = useState(false);
 
   const hasImage = featuredImage && featuredImage.trim() !== '' && !imageError;
 
-  const handleShareFacebook = (e: React.MouseEvent) => {
+  const handleShare = (e: React.MouseEvent) => {
+    // การ์ดทั้งใบเป็น <Link> ต้องกันไม่ให้การกดปุ่มเด้งไปเปิดข่าว
     e.preventDefault();
     e.stopPropagation();
+
+    // เปิดหน้าต่างแชร์ของ Facebook เสมอ
+    //
+    // เคยลองเรียก share sheet ของระบบก่อนแล้วค่อยตกมาที่ Facebook แต่ใช้ไม่ได้:
+    // Safari และ Chrome บน macOS ก็รองรับ Web Share API เหมือนกัน พอเรียกแล้วมันเปิด
+    // share sheet ของ macOS ซึ่งมีแต่ Mail / Messages / AirDrop ไม่มี Facebook
+    // โค้ดจึงไม่มีวันตกมาถึงบรรทัดนี้ และผู้ใช้แชร์ไป Facebook ไม่ได้เลย
     const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(post.link)}`;
-    window.open(shareUrl, '_blank', 'width=600,height=400');
+    window.open(shareUrl, '_blank', 'width=600,height=400,noopener,noreferrer');
   };
 
   // Text-only card (no image)
@@ -48,6 +59,8 @@ export default function NewsCard({ post }: NewsCardProps) {
           {post.title.rendered}
         </h3>
 
+        <SdgBadges goals={sdgs} className="mt-auto mb-3" />
+
         {/* Date & Actions */}
         <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
           <span className="text-[11px] text-gray-500 sm:text-xs dark:text-gray-400">
@@ -55,11 +68,12 @@ export default function NewsCard({ post }: NewsCardProps) {
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleShareFacebook}
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white transition-all hover:bg-blue-700 hover:scale-110"
+              onClick={handleShare}
+              className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 sm:text-xs dark:text-gray-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-400"
               title="แชร์ไปยัง Facebook"
             >
-              <Facebook className="h-3.5 w-3.5" />
+              <Share2 className="h-3.5 w-3.5" />
+              แชร์
             </button>
             <span className="flex items-center gap-1 text-xs font-medium text-blue-600 transition-all group-hover:translate-x-0.5 dark:text-blue-400">
               อ่านต่อ
@@ -99,15 +113,6 @@ export default function NewsCard({ post }: NewsCardProps) {
           </div>
         )}
 
-        {/* Facebook Share Button */}
-        <button
-          onClick={handleShareFacebook}
-          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-white opacity-0 transition-all hover:bg-blue-700 hover:scale-110 group-hover:opacity-100"
-          title="แชร์ไปยัง Facebook"
-        >
-          <Facebook className="h-4 w-4" />
-        </button>
-
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       </div>
@@ -119,15 +124,27 @@ export default function NewsCard({ post }: NewsCardProps) {
           {post.title.rendered}
         </h3>
 
+        <SdgBadges goals={sdgs} className="mt-auto mb-3" />
+
         {/* Date & Read More */}
         <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
           <span className="text-[11px] text-gray-500 sm:text-xs dark:text-gray-400">
             {formatDate(post.date)}
           </span>
-          <span className="flex items-center gap-1 text-xs font-medium text-blue-600 opacity-0 transition-all group-hover:opacity-100 dark:text-blue-400">
-            อ่านต่อ
-            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 sm:text-xs dark:text-gray-400 dark:hover:bg-blue-950/40 dark:hover:text-blue-400"
+              title="แชร์ไปยัง Facebook"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              แชร์
+            </button>
+            <span className="flex items-center gap-1 text-xs font-medium text-blue-600 transition-all group-hover:translate-x-0.5 dark:text-blue-400">
+              อ่านต่อ
+              <ArrowRight className="h-3 w-3" />
+            </span>
+          </div>
         </div>
       </div>
     </Link>
