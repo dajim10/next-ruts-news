@@ -121,7 +121,9 @@ export default function Home() {
 
   // Intersection Observer for infinite scroll
   useEffect(() => {
-    if (loading) return;
+    // The sentinel only renders once both are done. Attaching earlier observes nothing,
+    // and no later dependency change would attach it, so scrolling would never load more.
+    if (loading || checkingAuth) return;
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -141,7 +143,7 @@ export default function Home() {
         observerRef.current.disconnect();
       }
     };
-  }, [loading, hasMore, loadingMore, loadMoreFailed, loadMorePosts]);
+  }, [loading, checkingAuth, hasMore, loadingMore, loadMoreFailed, loadMorePosts]);
 
   const faculties = useMemo(() => extractFaculties(posts), [posts]);
   const categories = useMemo(() => extractCategories(posts), [posts]);
