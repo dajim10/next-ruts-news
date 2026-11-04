@@ -1,11 +1,16 @@
 #!/bin/bash
-# https://portainer.web2.rmutsv.ac.th/api/stacks/webhooks/1794ac3c-cdaa-40cf-8d5d-d5e76fc17ea6 
 # Configuration
 IMAGE_NAME="node:next-news-ruts"
 
 # Portainer stack webhook - ยิงหลัง push สำเร็จ เพื่อให้ stack ดึง image ใหม่ไป deploy ทันที
+# The URL is a secret: anyone holding it can redeploy production, and this repo is public.
+# Keep it in .env.deploy (ignored by git and Docker) as PORTAINER_WEBHOOK=<url>, never in this file.
 # override ได้ด้วย env PORTAINER_WEBHOOK / ข้ามการ deploy ด้วย SKIP_DEPLOY=1
-PORTAINER_WEBHOOK="${PORTAINER_WEBHOOK:-https://portainer.web2.rmutsv.ac.th/api/stacks/webhooks/1794ac3c-cdaa-40cf-8d5d-d5e76fc17ea6}"
+DEPLOY_ENV_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.env.deploy"
+if [ -z "${PORTAINER_WEBHOOK}" ] && [ -f "${DEPLOY_ENV_FILE}" ]; then
+    . "${DEPLOY_ENV_FILE}"
+fi
+
 # Accept registry as first argument or from environment variable
 REGISTRY="${1:-${DOCKER_REGISTRY:-registry.rmutsv.app/panuwat.n}}"
 
@@ -54,7 +59,7 @@ deploy_stack() {
     fi
 
     if [ -z "${PORTAINER_WEBHOOK}" ]; then
-        echo -e "${YELLOW}ไม่ได้ตั้ง PORTAINER_WEBHOOK -> ข้ามการ deploy${NC}"
+        echo -e "${YELLOW}ไม่พบ PORTAINER_WEBHOOK (ตั้งใน .env.deploy) -> ข้ามการ deploy${NC}"
         return 0
     fi
 

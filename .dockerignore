@@ -1,0 +1,2 @@
+# Keep secrets such as .env.deploy out of the build context and image layers
+.env*
