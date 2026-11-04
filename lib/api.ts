@@ -119,63 +119,61 @@ export async function fetchPostsByFaculty(slug: string): Promise<NewsPost[]> {
 
 /**
  * Fetch posts filtered by faculty slug with pagination
+ *
+ * Throws on failure. Callers must be able to tell a failed request from an empty
+ * result, otherwise infinite scroll treats one network error as the end of the list.
  */
 export async function fetchPostsByFacultyPaginated(
   slug: string,
   perPage: number = 12
 ): Promise<NewsPost[]> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/posts/${slug}/${perPage}`, {
-      next: { revalidate: 300 },
-      cache: 'no-store', // For infinite scroll, don't cache
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch posts by faculty');
-    }
-    
-    const data = await response.json();
-    if (!Array.isArray(data)) return [];
-    
-    // Transform API response to match NewsPost type
-    return data.map((post: any, index: number) => ({
-      id: post.id || index,
-      date: post.date,
-      date_gmt: post.date_gmt || post.date,
-      guid: post.guid,
-      modified: post.modified || post.date,
-      modified_gmt: post.modified_gmt || post.date,
-      slug: post.slug,
-      status: post.status || 'publish',
-      type: post.type || 'post',
-      link: post.link,
-      title: typeof post.title === 'string' ? { rendered: post.title } : post.title,
-      content: post.content || { rendered: '', protected: false },
-      excerpt: post.excerpt || { rendered: '', protected: false },
-      author: post.author || 0,
-      featured_media: post.featured_media || 0,
-      comment_status: post.comment_status || 'closed',
-      ping_status: post.ping_status || 'closed',
-      sticky: post.sticky || false,
-      template: post.template || '',
-      format: post.format || 'standard',
-      meta: post.meta || {},
-      categories: post.categories || [],
-      tags: post.tags || [],
-      _links: post._links || {},
-      _embedded: {
-        'wp:featuredmedia': post.featureImage ? [{ 
-          id: 0, 
-          source_url: post.featureImage,
-          media_details: { sizes: {} }
-        }] : undefined,
-        'wp:term': post._embedded?.['wp:term'],
-      },
-    }));
-  } catch (error) {
-    console.error('Error fetching posts by faculty:', error);
-    return [];
+  const response = await fetch(`${API_BASE_URL}/posts/${slug}/${perPage}`, {
+    next: { revalidate: 300 },
+    cache: 'no-store', // For infinite scroll, don't cache
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch posts by faculty');
   }
+  
+  const data = await response.json();
+  if (!Array.isArray(data)) return [];
+  
+  // Transform API response to match NewsPost type
+  return data.map((post: any, index: number) => ({
+    id: post.id || index,
+    date: post.date,
+    date_gmt: post.date_gmt || post.date,
+    guid: post.guid,
+    modified: post.modified || post.date,
+    modified_gmt: post.modified_gmt || post.date,
+    slug: post.slug,
+    status: post.status || 'publish',
+    type: post.type || 'post',
+    link: post.link,
+    title: typeof post.title === 'string' ? { rendered: post.title } : post.title,
+    content: post.content || { rendered: '', protected: false },
+    excerpt: post.excerpt || { rendered: '', protected: false },
+    author: post.author || 0,
+    featured_media: post.featured_media || 0,
+    comment_status: post.comment_status || 'closed',
+    ping_status: post.ping_status || 'closed',
+    sticky: post.sticky || false,
+    template: post.template || '',
+    format: post.format || 'standard',
+    meta: post.meta || {},
+    categories: post.categories || [],
+    tags: post.tags || [],
+    _links: post._links || {},
+    _embedded: {
+      'wp:featuredmedia': post.featureImage ? [{ 
+        id: 0, 
+        source_url: post.featureImage,
+        media_details: { sizes: {} }
+      }] : undefined,
+      'wp:term': post._embedded?.['wp:term'],
+    },
+  }));
 }
 
 /**

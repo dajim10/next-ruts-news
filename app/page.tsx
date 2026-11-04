@@ -20,6 +20,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFaculty, setSelectedFaculty] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
@@ -112,6 +113,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error loading more posts:', error);
+      setLoadMoreFailed(true);
     } finally {
       setLoadingMore(false);
     }
@@ -123,7 +125,7 @@ export default function Home() {
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loadMoreFailed) {
           loadMorePosts();
         }
       },
@@ -139,7 +141,7 @@ export default function Home() {
         observerRef.current.disconnect();
       }
     };
-  }, [loading, hasMore, loadingMore, loadMorePosts]);
+  }, [loading, hasMore, loadingMore, loadMoreFailed, loadMorePosts]);
 
   const faculties = useMemo(() => extractFaculties(posts), [posts]);
   const categories = useMemo(() => extractCategories(posts), [posts]);
@@ -339,6 +341,15 @@ export default function Home() {
                 <Loader2 className="h-5 w-5 animate-spin" />
                 <span className="text-sm">กำลังโหลดข่าวเพิ่ม...</span>
               </div>
+            )}
+            {loadMoreFailed && (
+              <button
+                onClick={() => setLoadMoreFailed(false)}
+                className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                <RefreshCw className="h-4 w-4" />
+                โหลดข่าวเพิ่มไม่สำเร็จ ลองใหม่
+              </button>
             )}
             {!hasMore && posts.length > 0 && (
               <p className="text-sm text-gray-400">แสดงข่าวทั้งหมดแล้ว</p>
